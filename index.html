@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Front Railway · Productos & Categorías</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 980px; margin: 2rem auto; padding: 0 1rem; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    h1 { font-size: 1.3rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .card { border: 1px solid #ddd; border-radius: .6rem; padding: 1rem; }
+    button { padding: .5rem .8rem; border-radius: .4rem; border: 1px solid #ccc; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: .45rem; border-bottom: 1px solid #eee; text-align: left; font-size: .95rem; }
+    code { background: #f6f8fa; padding: .2rem .4rem; border-radius: .3rem; }
+    .muted { color: #666; font-size: .9rem; }
+    .ok { color: #156d1b; }
+    .err { color: #c62828; }
+    input { padding: .4rem; margin-right: .4rem; }
+    form { display:flex; gap:.4rem; flex-wrap:wrap; margin:.5rem 0 1rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Front en Railway</h1>
+    <button id="reloadAll">Recargar todo</button>
+  </header>
+
+  <p class="muted">APIs:
+    <code id="uProd"></code> ·
+    <code id="uCat"></code>
+  </p>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Productos</h2>
+      <form id="formProduct">
+        <input id="pname" placeholder="Nombre" required />
+        <input id="pprice" type="number" step="0.01" placeholder="Precio" required />
+        <button>Crear</button>
+        <span id="pmsg"></span>
+      </form>
+      <table>
+        <thead><tr><th>ID</th><th>Nombre</th><th>Precio</th><th></th></tr></thead>
+        <tbody id="tbodyProducts"></tbody>
+      </table>
+      <div class="muted" id="pstatus"></div>
+    </section>
+
+    <section class="card">
+      <h2>Categorías</h2>
+      <form id="formCategory">
+        <input id="cname" placeholder="Nombre" required />
+        <button>Crear</button>
+        <span id="cmsg"></span>
+      </form>
+      <table>
+        <thead><tr><th>ID</th><th>Nombre</th><th></th></tr></thead>
+        <tbody id="tbodyCategories"></tbody>
+      </table>
+      <div class="muted" id="cstatus"></div>
+    </section>
+  </div>
+
+  <script>
+    // ==== Config: URLs de tus APIs en Railway ===
+    const PRODUCTS_URL = "https://products-api-production-9ae2.up.railway.app/api/products";
+    const CATEGORIES_URL = "https://categories-api-production.up.railway.app/api/categories";
+
+    document.getElementById("uProd").textContent = PRODUCTS_URL;
+    document.getElementById("uCat").textContent = CATEGORIES_URL;
+
+    const pStatus = document.getElementById("pstatus");
+    const cStatus = document.getElementById("cstatus");
+    const pMsg = document.getElementById("pmsg");
+    const cMsg = document.getElementById("cmsg");
+    const tbodyP = document.getElementById("tbodyProducts");
+    const tbodyC = document.getElementById("tbodyCategories");
+
+    // ===== Productos =====
+    async function loadProducts() {
+      pStatus.textContent = "Cargando...";
+      tbodyP.innerHTML = "";
+      try {
+        const r = await fetch(PRODUCTS_URL);
+        if (!r.ok) throw new Error(r.status + " " + r.statusText);
+        const data = await r.json();
+        (Array.isArray(data) ? data : []).forEach(p => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = \`
+            <td>\${p.id ?? ""}</td>
+            <td>\${p.name ?? ""}</td>
+            <td>\${p.price ?? ""}</td>
+            <td><button class="delP" data-id="\${p.id}">Eliminar</button></td>\`;
+          tbodyP.appendChild(tr);
+        });
+        pStatus.innerHTML = '<span class="ok">OK</span>';
+      } catch (e) {
+        pStatus.innerHTML = '<span class="err">Error: ' + e.message + '</span>';
+      }
+    }
+
+    async function createProduct(e) {
+      e.preventDefault();
+      pMsg.textContent = "Enviando...";
+      const dto = {
+        name: document.getElementById("pname").value.trim(),
+        price: parseFloat(document.getElementById("pprice").value)
+      };
+      try {
+        const r = await fetch(PRODUCTS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(dto)
+        });
+        if (!r.ok) throw new Error(r.status + " " + r.statusText);
+        pMsg.innerHTML = '<span class="ok">Creado ✔</span>';
+        e.target.reset();
+        loadProducts();
+      } catch (e) {
+        pMsg.innerHTML = '<span class="err">Error: ' + e.message + '</span>';
+      }
+    }
+
+    async function deleteProduct(id) {
+      if (!confirm("¿Eliminar producto " + id + "?")) return;
+      try {
+        const r = await fetch(PRODUCTS_URL + "/" + id, { method: "DELETE" });
+        if (!r.ok) throw new Error(r.status + " " + r.statusText);
+        loadProducts();
+      } catch (e) { alert("Error: " + e.message); }
+    }
+
+    // ===== Categorías =====
+    async function loadCategories() {
+      cStatus.textContent = "Cargando...";
+      tbodyC.innerHTML = "";
+      try {
+        const r = await fetch(CATEGORIES_URL);
+        if (!r.ok) throw new Error(r.status + " " + r.statusText);
+        const data = await r.json();
+        (Array.isArray(data) ? data : []).forEach(c => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = \`
+            <td>\${c.id ?? ""}</td>
+            <td>\${c.name ?? ""}</td>
+            <td><button class="delC" data-id="\${c.id}">Eliminar</button></td>\`;
+          tbodyC.appendChild(tr);
+        });
+        cStatus.innerHTML = '<span class="ok">OK</span>';
+      } catch (e) {
+        cStatus.innerHTML = '<span class="err">Error: ' + e.message + '</span>';
+      }
+    }
+
+    async function createCategory(e) {
+      e.preventDefault();
+      cMsg.textContent = "Enviando...";
+      const dto = { name: document.getElementById("cname").value.trim() };
+      try {
+        const r = await fetch(CATEGORIES_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(dto)
+        });
+        if (!r.ok) throw new Error(r.status + " " + r.statusText);
+        cMsg.innerHTML = '<span class="ok">Creada ✔</span>';
+        e.target.reset();
+        loadCategories();
+      } catch (e) {
+        cMsg.innerHTML = '<span class="err">Error: ' + e.message + '</span>';
+      }
+    }
+
+    document.getElementById("reloadAll").onclick = () => { loadProducts(); loadCategories(); };
+    document.getElementById("formProduct").addEventListener("submit", createProduct);
+    document.getElementById("formCategory").addEventListener("submit", createCategory);
+
+    tbodyP.addEventListener("click", (e) => {
+      const btn = e.target.closest(".delP");
+      if (btn) deleteProduct(btn.dataset.id);
+    });
+    tbodyC.addEventListener("click", (e) => {
+      const btn = e.target.closest(".delC");
+      if (btn) deleteCategory(btn.dataset.id);
+    });
+
+    async function deleteCategory(id) {
+      if (!confirm("¿Eliminar categoría " + id + "?")) return;
+      try {
+        const r = await fetch(CATEGORIES_URL + "/" + id, { method: "DELETE" });
+        if (!r.ok) throw new Error(r.status + " " + r.statusText);
+        loadCategories();
+      } catch (e) { alert("Error: " + e.message); }
+    }
+
+    // Primera carga
+    loadProducts(); loadCategories();
+  </script>
+</body>
+</html>
