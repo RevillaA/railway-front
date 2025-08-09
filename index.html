@@ -132,7 +132,7 @@
             <td>${p.id ?? ""}</td>
             <td>${p.name ?? ""}</td>
             <td>${p.price ?? ""}</td>
-            <td>${p.category_id ? categoryMap.get(p.category_id) || "Unknown" : ""}</td>
+            <td>${p.categoryId ? categoryMap.get(p.categoryId) || "Unknown" : ""}</td>
             <td>${p.description ?? ""}</td>
             <td><button class="delP" data-id="${p.id}">Eliminar</button></td>`;
           tbodyP.appendChild(tr);
@@ -149,7 +149,7 @@
       const dto = {
         name: document.getElementById("pname").value.trim(),
         price: parseFloat(document.getElementById("pprice").value),
-        category_id: parseInt(document.getElementById("pcategory").value),
+        categoryId: parseInt(document.getElementById("pcategory").value),
         description: document.getElementById("pdescription").value.trim()
       };
       try {
@@ -223,7 +223,7 @@
         cMsg.innerHTML = '<span class="ok">Creada ✔</span>';
         e.target.reset();
         loadCategories();
-        populateCategoryDropdown(); // Refresh dropdown after creating a category
+        populateCategoryDropdown();
       } catch (e) {
         cMsg.innerHTML = `<span class="err">Error: ${e.message}</span>`;
       }
@@ -235,7 +235,7 @@
         const r = await fetch(`${CATEGORIES_URL}/${id}`, { method: "DELETE" });
         if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
         loadCategories();
-        populateCategoryDropdown(); // Refresh dropdown after deleting a category
+        populateCategoryDropdown();
       } catch (e) {
         alert(`Error: ${e.message}`);
       }
