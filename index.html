@@ -17,8 +17,8 @@
     .muted { color: #666; font-size: .9rem; }
     .ok { color: #156d1b; }
     .err { color: #c62828; }
-    input { padding: .4rem; margin-right: .4rem; }
-    form { display:flex; gap:.4rem; flex-wrap:wrap; margin:.5rem 0 1rem; }
+    input, select { padding: .4rem; margin-right: .4rem; }
+    form { display: flex; gap: .4rem; flex-wrap: wrap; margin: .5rem 0 1rem; }
   </style>
 </head>
 <body>
@@ -38,11 +38,15 @@
       <form id="formProduct">
         <input id="pname" placeholder="Nombre" required />
         <input id="pprice" type="number" step="0.01" placeholder="Precio" required />
+        <select id="pcategory" required>
+          <option value="" disabled selected>Selecciona una categoría</option>
+        </select>
+        <input id="pdescription" placeholder="Descripción" required />
         <button>Crear</button>
         <span id="pmsg"></span>
       </form>
       <table>
-        <thead><tr><th>ID</th><th>Nombre</th><th>Precio</th><th></th></tr></thead>
+        <thead><tr><th>ID</th><th>Nombre</th><th>Precio</th><th>Categoría</th><th>Descripción</th><th></th></tr></thead>
         <tbody id="tbodyProducts"></tbody>
       </table>
       <div class="muted" id="pstatus"></div>
@@ -78,26 +82,58 @@
     const cMsg = document.getElementById("cmsg");
     const tbodyP = document.getElementById("tbodyProducts");
     const tbodyC = document.getElementById("tbodyCategories");
+    const pCategorySelect = document.getElementById("pcategory");
+
+    // ===== Helper: Fetch Categories for Mapping =====
+    async function fetchCategories() {
+      try {
+        const r = await fetch(CATEGORIES_URL);
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+        const data = await r.json();
+        return Array.isArray(data) ? data : [];
+      } catch (e) {
+        console.error("Error fetching categories:", e.message);
+        return [];
+      }
+    }
+
+    // ===== Populate Category Dropdown =====
+    async function populateCategoryDropdown() {
+      const categories = await fetchCategories();
+      pCategorySelect.innerHTML = '<option value="" disabled selected>Selecciona una categoría</option>';
+      categories.forEach(c => {
+        const option = document.createElement("option");
+        option.value = c.id;
+        option.textContent = c.name;
+        pCategorySelect.appendChild(option);
+      });
+    }
 
     // ===== Productos =====
     async function loadProducts() {
       pStatus.textContent = "Cargando...";
       tbodyP.innerHTML = "";
       try {
-        const r = await fetch(PRODUCTS_URL);
-        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-        let data;
-        try {
-          data = await r.json();
-        } catch (e) {
-          throw new Error("Invalid JSON response");
-        }
-        (Array.isArray(data) ? data : []).forEach(p => {
+        const [products, categories] = await Promise.all([
+          fetch(PRODUCTS_URL).then(async r => {
+            if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+            try {
+              return await r.json();
+            } catch (e) {
+              throw new Error("Invalid JSON response");
+            }
+          }),
+          fetchCategories()
+        ]);
+        const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+        (Array.isArray(products) ? products : []).forEach(p => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${p.id ?? ""}</td>
             <td>${p.name ?? ""}</td>
             <td>${p.price ?? ""}</td>
+            <td>${p.category_id ? categoryMap.get(p.category_id) || "Unknown" : ""}</td>
+            <td>${p.description ?? ""}</td>
             <td><button class="delP" data-id="${p.id}">Eliminar</button></td>`;
           tbodyP.appendChild(tr);
         });
@@ -112,7 +148,9 @@
       pMsg.textContent = "Enviando...";
       const dto = {
         name: document.getElementById("pname").value.trim(),
-        price: parseFloat(document.getElementById("pprice").value)
+        price: parseFloat(document.getElementById("pprice").value),
+        category_id: parseInt(document.getElementById("pcategory").value),
+        description: document.getElementById("pdescription").value.trim()
       };
       try {
         const r = await fetch(PRODUCTS_URL, {
@@ -185,6 +223,7 @@
         cMsg.innerHTML = '<span class="ok">Creada ✔</span>';
         e.target.reset();
         loadCategories();
+        populateCategoryDropdown(); // Refresh dropdown after creating a category
       } catch (e) {
         cMsg.innerHTML = `<span class="err">Error: ${e.message}</span>`;
       }
@@ -196,6 +235,7 @@
         const r = await fetch(`${CATEGORIES_URL}/${id}`, { method: "DELETE" });
         if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
         loadCategories();
+        populateCategoryDropdown(); // Refresh dropdown after deleting a category
       } catch (e) {
         alert(`Error: ${e.message}`);
       }
@@ -205,6 +245,7 @@
     document.getElementById("reloadAll").onclick = () => {
       loadProducts();
       loadCategories();
+      populateCategoryDropdown();
     };
     document.getElementById("formProduct").addEventListener("submit", createProduct);
     document.getElementById("formCategory").addEventListener("submit", createCategory);
@@ -220,7 +261,7 @@
 
     // Initial load
     (async () => {
-      await Promise.all([loadProducts(), loadCategories()]);
+      await Promise.all([loadProducts(), loadCategories(), populateCategoryDropdown()]);
     })();
   </script>
 </body>
