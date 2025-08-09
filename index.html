@@ -63,140 +63,160 @@
     </section>
   </div>
 
-  <script>
-    // ==== Config: URLs de tus APIs en Railway ===
-    const PRODUCTS_URL = "https://products-api-production-9ae2.up.railway.app/api/products";
-    const CATEGORIES_URL = "https://categories-api-production.up.railway.app/api/categories";
+<script>
+  // ==== Config: URLs de tus APIs en Railway ===
+  const PRODUCTS_URL = "https://products-api-production-9ae2.up.railway.app/api/products";
+  const CATEGORIES_URL = "https://categories-api-production.up.railway.app/api/categories";
 
-    document.getElementById("uProd").textContent = PRODUCTS_URL;
-    document.getElementById("uCat").textContent = CATEGORIES_URL;
+  document.getElementById("uProd").textContent = PRODUCTS_URL;
+  document.getElementById("uCat").textContent = CATEGORIES_URL;
 
-    const pStatus = document.getElementById("pstatus");
-    const cStatus = document.getElementById("cstatus");
-    const pMsg = document.getElementById("pmsg");
-    const cMsg = document.getElementById("cmsg");
-    const tbodyP = document.getElementById("tbodyProducts");
-    const tbodyC = document.getElementById("tbodyCategories");
+  const pStatus = document.getElementById("pstatus");
+  const cStatus = document.getElementById("cstatus");
+  const pMsg = document.getElementById("pmsg");
+  const cMsg = document.getElementById("cmsg");
+  const tbodyP = document.getElementById("tbodyProducts");
+  const tbodyC = document.getElementById("tbodyCategories");
 
-    // ===== Productos =====
-    async function loadProducts() {
-      pStatus.textContent = "Cargando...";
-      tbodyP.innerHTML = "";
+  // ===== Productos =====
+  async function loadProducts() {
+    pStatus.textContent = "Cargando...";
+    tbodyP.innerHTML = "";
+    try {
+      const r = await fetch(PRODUCTS_URL);
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      let data;
       try {
-        const r = await fetch(PRODUCTS_URL);
-        if (!r.ok) throw new Error(r.status + " " + r.statusText);
-        const data = await r.json();
-        (Array.isArray(data) ? data : []).forEach(p => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = \`
-            <td>\${p.id ?? ""}</td>
-            <td>\${p.name ?? ""}</td>
-            <td>\${p.price ?? ""}</td>
-            <td><button class="delP" data-id="\${p.id}">Eliminar</button></td>\`;
-          tbodyP.appendChild(tr);
-        });
-        pStatus.innerHTML = '<span class="ok">OK</span>';
+        data = await r.json();
       } catch (e) {
-        pStatus.innerHTML = '<span class="err">Error: ' + e.message + '</span>';
+        throw new Error("Invalid JSON response");
       }
+      (Array.isArray(data) ? data : []).forEach(p => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${p.id ?? ""}</td>
+          <td>${p.name ?? ""}</td>
+          <td>${p.price ?? ""}</td>
+          <td><button class="delP" data-id="${p.id}">Eliminar</button></td>`;
+        tbodyP.appendChild(tr);
+      });
+      pStatus.innerHTML = '<span class="ok">OK</span>';
+    } catch (e) {
+      pStatus.innerHTML = `<span class="err">Error: ${e.message}</span>`;
     }
+  }
 
-    async function createProduct(e) {
-      e.preventDefault();
-      pMsg.textContent = "Enviando...";
-      const dto = {
-        name: document.getElementById("pname").value.trim(),
-        price: parseFloat(document.getElementById("pprice").value)
-      };
+  async function createProduct(e) {
+    e.preventDefault();
+    pMsg.textContent = "Enviando...";
+    const dto = {
+      name: document.getElementById("pname").value.trim(),
+      price: parseFloat(document.getElementById("pprice").value)
+    };
+    try {
+      const r = await fetch(PRODUCTS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dto)
+      });
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      pMsg.innerHTML = '<span class="ok">Creado ✔</span>';
+      e.target.reset();
+      loadProducts();
+    } catch (e) {
+      pMsg.innerHTML = `<span class="err">Error: ${e.message}</span>`;
+    }
+  }
+
+  async function deleteProduct(id) {
+    if (!id || !confirm(`¿Eliminar producto ${id}?`)) return;
+    try {
+      const r = await fetch(`${PRODUCTS_URL}/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      loadProducts();
+    } catch (e) {
+      alert(`Error: ${e.message}`);
+    }
+  }
+
+  // ===== Categorías =====
+  async function loadCategories() {
+    cStatus.textContent = "Cargando...";
+    tbodyC.innerHTML = "";
+    try {
+      const r = await fetch(CATEGORIES_URL);
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      let data;
       try {
-        const r = await fetch(PRODUCTS_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(dto)
-        });
-        if (!r.ok) throw new Error(r.status + " " + r.statusText);
-        pMsg.innerHTML = '<span class="ok">Creado ✔</span>';
-        e.target.reset();
-        loadProducts();
+        data = await r.json();
       } catch (e) {
-        pMsg.innerHTML = '<span class="err">Error: ' + e.message + '</span>';
+        throw new Error("Invalid JSON response");
       }
+      (Array.isArray(data) ? data : []).forEach(c => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${c.id ?? ""}</td>
+          <td>${c.name ?? ""}</td>
+          <td><button class="delC" data-id="${c.id}">Eliminar</button></td>`;
+        tbodyC.appendChild(tr);
+      });
+      cStatus.innerHTML = '<span class="ok">OK</span>';
+    } catch (e) {
+      cStatus.innerHTML = `<span class="err">Error: ${e.message}</span>`;
     }
+  }
 
-    async function deleteProduct(id) {
-      if (!confirm("¿Eliminar producto " + id + "?")) return;
-      try {
-        const r = await fetch(PRODUCTS_URL + "/" + id, { method: "DELETE" });
-        if (!r.ok) throw new Error(r.status + " " + r.statusText);
-        loadProducts();
-      } catch (e) { alert("Error: " + e.message); }
+  async function createCategory(e) {
+    e.preventDefault();
+    cMsg.textContent = "Enviando...";
+    const dto = { name: document.getElementById("cname").value.trim() };
+    try {
+      const r = await fetch(CATEGORIES_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dto)
+      });
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      cMsg.innerHTML = '<span class="ok">Creada ✔</span>';
+      e.target.reset();
+      loadCategories();
+    } catch (e) {
+      cMsg.innerHTML = `<span class="err">Error: ${e.message}</span>`;
     }
+  }
 
-    // ===== Categorías =====
-    async function loadCategories() {
-      cStatus.textContent = "Cargando...";
-      tbodyC.innerHTML = "";
-      try {
-        const r = await fetch(CATEGORIES_URL);
-        if (!r.ok) throw new Error(r.status + " " + r.statusText);
-        const data = await r.json();
-        (Array.isArray(data) ? data : []).forEach(c => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = \`
-            <td>\${c.id ?? ""}</td>
-            <td>\${c.name ?? ""}</td>
-            <td><button class="delC" data-id="\${c.id}">Eliminar</button></td>\`;
-          tbodyC.appendChild(tr);
-        });
-        cStatus.innerHTML = '<span class="ok">OK</span>';
-      } catch (e) {
-        cStatus.innerHTML = '<span class="err">Error: ' + e.message + '</span>';
-      }
+  async function deleteCategory(id) {
+    if (!id || !confirm(`¿Eliminar categoría ${id}?`)) return;
+    try {
+      const r = await fetch(`${CATEGORIES_URL}/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      loadCategories();
+    } catch (e) {
+      alert(`Error: ${e.message}`);
     }
+  }
 
-    async function createCategory(e) {
-      e.preventDefault();
-      cMsg.textContent = "Enviando...";
-      const dto = { name: document.getElementById("cname").value.trim() };
-      try {
-        const r = await fetch(CATEGORIES_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(dto)
-        });
-        if (!r.ok) throw new Error(r.status + " " + r.statusText);
-        cMsg.innerHTML = '<span class="ok">Creada ✔</span>';
-        e.target.reset();
-        loadCategories();
-      } catch (e) {
-        cMsg.innerHTML = '<span class="err">Error: ' + e.message + '</span>';
-      }
-    }
+  // Event listeners
+  document.getElementById("reloadAll").onclick = () => {
+    loadProducts();
+    loadCategories();
+  };
+  document.getElementById("formProduct").addEventListener("submit", createProduct);
+  document.getElementById("formCategory").addEventListener("submit", createCategory);
 
-    document.getElementById("reloadAll").onclick = () => { loadProducts(); loadCategories(); };
-    document.getElementById("formProduct").addEventListener("submit", createProduct);
-    document.getElementById("formCategory").addEventListener("submit", createCategory);
+  tbodyP.addEventListener("click", (e) => {
+    const btn = e.target.closest(".delP");
+    if (btn && btn.dataset.id) deleteProduct(btn.dataset.id);
+  });
+  tbodyC.addEventListener("click", (e) => {
+    const btn = e.target.closest(".delC");
+    if (btn && btn.dataset.id) deleteCategory(btn.dataset.id);
+  });
 
-    tbodyP.addEventListener("click", (e) => {
-      const btn = e.target.closest(".delP");
-      if (btn) deleteProduct(btn.dataset.id);
-    });
-    tbodyC.addEventListener("click", (e) => {
-      const btn = e.target.closest(".delC");
-      if (btn) deleteCategory(btn.dataset.id);
-    });
-
-    async function deleteCategory(id) {
-      if (!confirm("¿Eliminar categoría " + id + "?")) return;
-      try {
-        const r = await fetch(CATEGORIES_URL + "/" + id, { method: "DELETE" });
-        if (!r.ok) throw new Error(r.status + " " + r.statusText);
-        loadCategories();
-      } catch (e) { alert("Error: " + e.message); }
-    }
-
-    // Primera carga
-    loadProducts(); loadCategories();
-  </script>
+  // Initial load
+  (async () => {
+    await Promise.all([loadProducts(), loadCategories()]);
+  })();
+</script>
 </body>
 </html>
